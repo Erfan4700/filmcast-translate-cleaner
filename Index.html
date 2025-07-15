@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ابزار آنلاین حذف متن از فایل</title>
+    <style>
+        /* --- کدهای CSS برای ظاهری زیبا و مدرن --- */
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px;
+            direction: rtl;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        p.description {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        #drop-zone {
+            border: 3px dashed #bdc3c7;
+            border-radius: 10px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        #drop-zone.dragover {
+            border-color: #3498db;
+            background-color: #f8f9fa;
+        }
+
+        #drop-zone p {
+            margin: 0;
+            font-size: 1.1em;
+            color: #95a5a6;
+            pointer-events: none; /* باعث می‌شود کلیک از روی متن هم به کادر منتقل شود */
+        }
+        
+        #file-input {
+            display: none;
+        }
+
+        #file-info {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #2980b9;
+            min-height: 22px; /* جلوگیری از پرش صفحه */
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>ابزار حذف متن از فایل</h1>
+        <p class="description">
+            فایل متنی خود (مانند srt, txt, ass و...) را به کادر زیر بکشید و رها کنید یا برای انتخاب فایل، روی آن کلیک کنید.
+        </p>
+        
+        <div id="drop-zone">
+            <p>فایل را اینجا رها کنید</p>
+            <input type="file" id="file-input">
+        </div>
+
+        <div id="file-info"></div>
+
+    </div>
+
+    <script>
+    // --- کدهای JavaScript برای اجرای تمام منطق در مرورگر ---
+
+    // ------------------- بخش پیکربندی -------------------
+    // در این لیست، می‌توانید هر تعداد رشته متنی که می‌خواهید حذف شود را اضافه کنید.
+    const TEXTS_TO_REMOVE = [
+        "@filmcast_bot",
+        "فیلم‌کست٬ ربات تلگرام دانلود فیلم و سریال"
+    ];
+    // ---------------------------------------------------
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileInfo = document.getElementById('file-info');
+
+    // فعال کردن انتخاب فایل با کلیک روی کادر
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // مدیریت انتخاب فایل از طریق دیالوگ
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            processFile(e.target.files[0]);
+        }
+    });
+
+    // جلوگیری از رفتار پیش‌فرض مرورگر برای کشیدن و رها کردن
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.body.addEventListener(eventName, preventDefaults);
+        dropZone.addEventListener(eventName, preventDefaults);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // تغییر ظاهر کادر هنگام کشیدن فایل روی آن
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'));
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'));
+    });
+
+    // مدیریت فایل رها شده در کادر
+    dropZone.addEventListener('drop', (e) => {
+        if (e.dataTransfer.files.length > 0) {
+            processFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    function processFile(file) {
+        fileInfo.textContent = `در حال پردازش فایل: ${file.name}...`;
+        
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            let originalContent = e.target.result;
+            let modifiedContent = originalContent;
+
+            // حذف رشته‌های مشخص شده از محتوای فایل
+            TEXTS_TO_REMOVE.forEach(textToRemove => {
+                // استفاده از new RegExp برای جایگزینی همه موارد (global replacement)
+                const regex = new RegExp(textToRemove.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+                modifiedContent = modifiedContent.replace(regex, "");
+            });
+            
+            // استخراج نام و پسوند فایل
+            const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
+            const extension = file.name.substring(file.name.lastIndexOf('.'));
+            const newFileName = `${baseName}_cleaned${extension}`;
+            
+            // دانلود فایل پردازش شده
+            downloadFile(modifiedContent, newFileName);
+            
+            fileInfo.textContent = `فایل تمیز شده با موفقیت دانلود شد.`;
+            setTimeout(() => { fileInfo.textContent = ''; }, 4000); // پاک کردن پیام بعد از چند ثانیه
+        };
+
+        reader.onerror = () => {
+            fileInfo.textContent = "خطا در خواندن فایل.";
+        };
+
+        // خواندن فایل با انکودینگ UTF-8
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function downloadFile(content, fileName) {
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        // پاکسازی
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    </script>
+
+</body>
+</html>
